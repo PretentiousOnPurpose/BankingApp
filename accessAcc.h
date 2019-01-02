@@ -7,8 +7,8 @@ using namespace std;
 bool loginedIn;
 
 void loginAccount();
-void dashboard(string, string, pqxx::connection *);
-void depositCash(string, string, pqxx::connection *);
+void dashboard(string, string);
+void depositCash(string, string);
 void withdrawCash();
 void sendMoney();
 void requestMoney();
@@ -18,7 +18,9 @@ void logout();
 string genTransID();
 
 
-void loginAccount(pqxx::connection * C) {
+void loginAccount() {
+    pqxx::connection * C = new pqxx::connection("dbname = bank user = postgres password = 007 hostaddr = 127.0.0.1 port = 5432");
+startLogin:
     string sql;
 
     system("clear");
@@ -30,40 +32,43 @@ void loginAccount(pqxx::connection * C) {
 
     cin >> accNo;
     cout << "Enter Pin: ";
-
     cin >> pin;
 
-    sql = "SELECT * FROM accounts WHERE accno='" + accNo + "';";
+    sql = "SELECT EXISTS(SELECT * FROM accounts WHERE accno='" + accNo + "');";
     nontransaction N(*C);
     result R(N.exec(sql));
+    result::const_iterator c = R.begin();
+
+    if (c[0].as<bool>() == false) {
+      goto fail;
+    }
+
+    sql = "SELECT * FROM accounts WHERE accno='" + accNo + "';";
+    R = N.exec(sql);
+    c = R.begin();
 
     cout << "\nValidating\n";
     usleep(1 * 1000000);
 
-    result::const_iterator c = R.begin();
-     try {
-        if (pin == c[2].as<string>()) {
-          loginedIn = true;
-          cout << "\nLogin Successful\n\n";
-          usleep(1.25 * 1000000);
-        } else {
-          cout << "\nAccount No/Pin incorrect";
-          cout << "Hit enter to try again...";
-          cin.ignore();
-          while (cin.get() != '\n') {}
-          loginAccount(C);
-        }
-      } catch (const std::exception &e) {
-          cout << "\nAccount No/Pin incorrect";
-          cout << "Hit enter to try again...";
-          cin.ignore();
-          while (cin.get() != '\n') {}
-          loginAccount(C);
-      }
-      dashboard(accNo, c[1].as<string>(), C);
+    if (pin == c[2].as<string>()) {
+        loginedIn = true;
+        cout << "\nLogin Successful\n\n";
+        usleep(1.25 * 1000000);
+    } else {
+      fail:
+        cout << "\nAccount No/Pin incorrect\n";
+        cout << "Hit enter to try again...";
+        cin.ignore();
+        while (cin.get() != '\n') {}
+        goto startLogin;
+    }
+    C->disconnect();
+    delete(C);
+    dashboard(accNo, c[1].as<string>());
 }
 
-void dashboard(string accno, string name, pqxx::connection * C) {
+void dashboard(string accno, string name) {
+startDashboard:
     system("clear");
 
     int action;
@@ -82,7 +87,7 @@ void dashboard(string accno, string name, pqxx::connection * C) {
 
     switch(action) {
         case 1:
-            depositCash(accno, name, C);
+            depositCash(accno, name);
             break;
         case 2:
             withdrawCash();
@@ -102,11 +107,14 @@ void dashboard(string accno, string name, pqxx::connection * C) {
         default:
             cout << "\nInvalid Choice\n";
             cout << "Refreshing in 2 seconds\n";
-            dashboard(accno, name, C);
+            usleep(2 * 1000000);
+            dashboard(accno, name);
     }
 }
 
-void depositCash(string accno, string name, pqxx::connection * C) {
+void depositCash(string accno, string name) {
+    pqxx::connection * C = new pqxx::connection("dbname = bank user = postgres password = 007 hostaddr = 127.0.0.1 port = 5432");
+startDeposit:
     string cash;
     // char end;
     string sql;
@@ -114,8 +122,7 @@ void depositCash(string accno, string name, pqxx::connection * C) {
     system("clear");
     cout << "\nChawat eBanking System\n\n";
     currentBalance();
-    cout << "\nPlease enter the amount for deposition: ₹";
-
+    cout << "\nPlease enter the amount for deposition: ₹ ";
 
     cin >> cash;
     cin.ignore();
@@ -124,8 +131,17 @@ void depositCash(string accno, string name, pqxx::connection * C) {
 
     work W(*C);
     sql = "UPDATE accounts SET amount = amount + " + cash + " WHERE accno = '" + accno + "';";
-    W.exec(sql);
-    W.commit();
+
+    try {
+      W.exec(sql);
+      W.commit();
+    } catch(const std::exception &e) {
+      cout << "Something went wrong... \n";
+      cin.ignore();
+      cout << "\nEnter enter to try again...";
+      while (cin.get() != '\n') {}
+      goto startDeposit;
+    }
 
     usleep(1.25 * 1000000);
     system("clear");
@@ -135,12 +151,11 @@ void depositCash(string accno, string name, pqxx::connection * C) {
     // cout << "Your transaction id: " << genTransID() << endl;
 
     cout << "\n\nHit Return or Enter for Main Screen\n\n";
+    C->disconnect();
+    delete(C);
 
-    while (cin.get() != '\n') {
-
-    }
-
-    // dashboard();
+    while (cin.get() != '\n') {}
+    dashboard(accno, name);
 
 }
 //
@@ -194,6 +209,7 @@ void getTransHistory() {
 }
 //
 void logout() {
-//     loginedIn = false;
-//     mainView();
+    loginedIn = false;
+    // mainView();
+    return;
 }

@@ -5,7 +5,9 @@ using namespace std;
 
 string getAccountNewNo(pqxx::connection *);
 
-void createAccount(pqxx::connection * C) {
+void createAccount() {
+    pqxx::connection * C = new pqxx::connection("dbname = bank user = postgres password = 007 hostaddr = 127.0.0.1 port = 5432");
+startCreate:
     string newAccNo = getAccountNewNo(C);
 
     string sql;
@@ -40,10 +42,10 @@ void createAccount(pqxx::connection * C) {
     cin >> cnf;
     if (!(cnf == "Y" || cnf == "y")) {
       fail:
-        cout << "\n\nLet's try again\n";
+        cout << "\nLet's try again\n";
         cout << "\nFlushing existing details... Please wait\n";
         usleep(5 * 1000000);
-        createAccount(C);
+        goto startCreate;
     }
     cout << "\n\nCreating a new account for " << name << endl;
 
@@ -56,11 +58,11 @@ void createAccount(pqxx::connection * C) {
       W.exec(sql);
       W.commit();
     } catch (const std::exception &e) {
-      cout << "\nSomething went wrong... Provided information might have been incorrent or in wrong format\nPlease try again\n";
-      cout << "\n\nHit Return or Enter for Main Screen\n\n";
+      cout << "\nSomething went wrong... Provided information might have been incorrent or in wrong format\n";
+      cout << "\nHit Return or Enter to Try Again...\n\n";
       cin.ignore();
       while (cin.get() != '\n') {}
-      return;
+      goto fail;
     }
     usleep(1.25 * 1000000);
     system("clear");
@@ -73,6 +75,8 @@ void createAccount(pqxx::connection * C) {
 
     cout << "\n\nHit Return or Enter for Main Screen\n\n";
     cin.ignore();
+    C->disconnect();
+    delete(C);
     while (cin.get() != '\n') {}
 }
 

@@ -15,8 +15,6 @@ void accessAccount();
 void updateAccount();
 void deleteAccount();
 
-pqxx::connection * C = new pqxx::connection("dbname = bank user = postgres password = 007 hostaddr = 127.0.0.1 port = 5432");
-
 int currSelection;
 
 int main() {
@@ -26,6 +24,7 @@ int main() {
 }
 
 void mainView() {
+    pqxx::connection * C = new pqxx::connection("dbname = bank user = postgres password = 007 hostaddr = 127.0.0.1 port = 5432");
 
     try {
       if (C->is_open()) {}
@@ -34,7 +33,8 @@ void mainView() {
       cout << "DATABASE CONNECTION ERROR\n";
       exit(0);
     }
-
+    C->disconnect();
+    delete(C);
     run:
 
         system("clear");
@@ -85,12 +85,13 @@ void mainView() {
 }
 
 void createAcc() {
-  createAccount(C);
+  createAccount();
   mainView();
 }
 
 void accessAccount() {
-  loginAccount(C);
+  loginAccount();
+  mainView();
 }
 
 
