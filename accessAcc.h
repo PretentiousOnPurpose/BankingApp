@@ -1,6 +1,7 @@
 #include <iostream>
 #include <pqxx/pqxx>
-#include <assert.h>
+#include <ctime>
+
 using namespace pqxx;
 using namespace std;
 
@@ -115,22 +116,20 @@ startDashboard:
 void depositCash(string accno, string name) {
     pqxx::connection * C = new pqxx::connection("dbname = bank user = postgres password = 007 hostaddr = 127.0.0.1 port = 5432");
 startDeposit:
-    string cash;
-    // char end;
+    string amount;
     string sql;
+    string transID;
 
     system("clear");
     cout << "\nChawat eBanking System\n\n";
     currentBalance();
     cout << "\nPlease enter the amount for deposition: ₹ ";
 
-    cin >> cash;
-    cin.ignore();
-    // Some thing with DB
+    cin >> amount;
     cout << "\nProcessing... Please wait\n" << endl;
 
     work W(*C);
-    sql = "UPDATE accounts SET amount = amount + " + cash + " WHERE accno = '" + accno + "';";
+    sql = "UPDATE accounts SET amount = amount + " + amount + " WHERE accno = '" + accno + "';";
 
     try {
       W.exec(sql);
@@ -143,17 +142,30 @@ startDeposit:
       goto startDeposit;
     }
 
+    transID = genTransID();
+    sql = "INSERT INTO transactions (transid, src, dst, desp) VALUES ('" + transID + "', 'CASH', '" + accno + "'," + "'DEPOSITED ₹ " + amount + " BY CASH');";
+    work F(*C);
+    try {
+      F.exec(sql);
+      F.commit();
+    } catch(const std::exception &e) {
+      cout << "Something went wrong while processing transaction...\n";
+      cout << "Transaction couldn't be registered, however the amount has deposited successfully\n";
+      cout << "Registering the issue for further investigation...\n";
+      usleep(10 * 1000000);
+    }
+
     usleep(1.25 * 1000000);
     system("clear");
     cout << "\nChawat eBanking System\n\n";
     cout << "Name: " << name << " | " << "Account No: " << accno << endl << endl;
-    cout << "₹" << cash << " deposited successfully\n";
-    // cout << "Your transaction id: " << genTransID() << endl;
+    cout << "₹" << amount << " deposited successfully\n";
+    cout << "Your transaction id: " << transID << endl;
 
     cout << "\n\nHit Return or Enter for Main Screen\n\n";
     C->disconnect();
     delete(C);
-
+    cin.ignore();
     while (cin.get() != '\n') {}
     dashboard(accno, name);
 
@@ -212,4 +224,16 @@ void logout() {
     loginedIn = false;
     // mainView();
     return;
+}
+
+string genTransID() {
+  time_t rawtime;
+  struct tm * timeinfo;
+  char transID[80];
+
+  time (&rawtime);
+  timeinfo = localtime (&rawtime);
+
+  strftime (transID,80,"%y%m%d%H%M%S",timeinfo);
+  return transID;
 }
