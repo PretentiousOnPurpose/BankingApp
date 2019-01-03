@@ -38,14 +38,14 @@ startLogin:
       goto fail;
     }
 
-    sql = "SELECT pin FROM accounts WHERE accno='" + accNo + "';";
+    sql = "SELECT * FROM accounts WHERE accno='" + accNo + "';";
     R = N.exec(sql);
     c = R.begin();
 
     cout << "\nValidating\n";
     usleep(1 * 1000000);
 
-    if (c[0].as<string>() == "DELETED") {
+    if (c[2].as<string>() == "DELETED") {
       cout << "\nYour Account has been disabled/deleted\n";
       cout << "Please contact Branch Manager for help\n";
       cin.ignore();
@@ -54,7 +54,7 @@ startLogin:
       return;
     }
 
-    if (pin == c[0].as<string>()) {
+    if (pin == c[2].as<string>()) {
         loginedIn = true;
         cout << "\nLogin Successful\n\n";
         usleep(1.25 * 1000000);
@@ -85,7 +85,8 @@ void dashboard(string accno, string name) {
           cout << "3. Send Money\n";
           cout << "4. Check Current Balance\n";
           cout << "5. Get Transaction History\n";
-          cout << "6. Logout\n";
+          cout << "6. Change Login Pin\n";
+          cout << "7. Logout\n";
           cout << "\nPlease enter your choice: ";
 
           cin >> action;
@@ -107,6 +108,8 @@ void dashboard(string accno, string name) {
                   getTransHistory(accno, name);
                   break;
               case 6:
+                  changePin(accno, name);
+              case 7:
                   logout();
                   break;
               default:
@@ -387,4 +390,57 @@ void backToDashboard(string accno, string name) {
     cin.ignore();
     while (cin.get() != '\n') {}
     dashboard(accno, name);
+}
+
+void changePin(string accno, string name) {
+    string currPin;
+    string newPin;
+    string cnfPin;
+    string sql;
+
+    pqxx::connection * C = new pqxx::connection("dbname = bank user = postgres password = 007 hostaddr = 127.0.0.1 port = 5432");
+    pqxx::nontransaction * N = new pqxx::nontransaction(*C);
+startChange:
+    system("clear");
+    cout << "\nChawat eBanking System\n\n";
+    cout << "Change Login Pin\n";
+    cout << "Name: " << name << " | " << "Account No: " << accno << endl << endl;
+    cout << "Enter Current Pin: ";
+    cin >> currPin;
+    cout << "Enter New Pin: ";
+    cin >> newPin;
+    cout << "Confirm New Pin: ";
+    cin >> cnfPin;
+
+    cout << "\nProcessing... Please wait\n";
+
+    sql = "SELECT pin FROM accounts WHERE accno = '" + accno + "';";
+    result R(N->exec(sql));
+    result::const_iterator c = R.begin();
+
+    delete(N);
+
+    if (c[0].as<string>() == currPin) {
+        if (newPin == cnfPin) {
+            pqxx::work * W = new pqxx::work(*C);
+            sql = "UPDATE accounts SET pin = '" + newPin + "' WHERE accno = '" + accno + "';";
+            W->exec(sql);
+            W->commit();
+        } else {
+            cout << "New Pins do not match. Please try again\n";
+            cout << "Refreshing... Please wait\n";
+            usleep(5 * 1000000);
+            goto startChange;
+        }
+    } else {
+        cout << "Incorrect Login Pin. Please try again\n";
+        cout << "Refreshing... Please wait\n";
+        usleep(5 * 1000000);
+        goto startChange;
+    }
+    usleep(1.25 * 1000000);
+    cout << "\nLogin Pin successfully updated.\n";
+    C->disconnect();
+    delete(C);
+    backToDashboard(accno, name);
 }

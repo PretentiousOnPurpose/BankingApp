@@ -14,5 +14,6 @@ void currentBalance(string, string);
 void getTransHistory(string, string);
 void logout();
 void backToDashboard(string, string);
+void changePin(string, string);
 
 #endif
