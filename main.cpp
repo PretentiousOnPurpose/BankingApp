@@ -3,9 +3,9 @@
 #include <string>
 #include <cstdlib>
 #include <unistd.h>
-#include "account.h"
-#include "createAcc.h"
-#include "accessAcc.h"
+#include "utils.hpp"
+#include "createAcc.hpp"
+#include "accessAcc.hpp"
 using namespace std;
 using namespace pqxx;
 

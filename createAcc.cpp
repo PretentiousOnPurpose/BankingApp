@@ -1,9 +1,16 @@
 #include <iostream>
 #include <pqxx/pqxx>
+#include <ctime>
+#include <string>
+#include <unistd.h>
+#include <cstdlib>
+#include "utils.hpp"
+#include "createAcc.hpp"
+
 using namespace pqxx;
 using namespace std;
 
-string getAccountNewNo(pqxx::connection *);
+
 
 void createAccount() {
     pqxx::connection * C = new pqxx::connection("dbname = bank user = postgres password = 007 hostaddr = 127.0.0.1 port = 5432");
@@ -11,7 +18,6 @@ startCreate:
     string newAccNo = getAccountNewNo(C);
 
     string sql;
-
     string cnf;
     string name;
     string pin;
@@ -19,6 +25,7 @@ startCreate:
     string email;
     string aadhar;
     string amount;
+    pqxx::work * W;
 
     system("clear");
     cout << "\nChawat eBanking System\n\n";
@@ -53,10 +60,10 @@ startCreate:
 
     sql = "INSERT INTO accounts (accno, name, pin, phone, email, aadhar, amount) VALUES ('";
     sql += newAccNo +"','"+ name +"','"+ pin +"','"+ phone +"','"+ email +"','"+ aadhar +"'," + amount + ");";
-    work W(*C);
+    W = new pqxx::work(*C);
     try {
-      W.exec(sql);
-      W.commit();
+      W->exec(sql);
+      W->commit();
     } catch (const std::exception &e) {
       cout << "\nSomething went wrong... Provided information might have been incorrent or in wrong format\n";
       cout << "\nHit Return or Enter to Try Again...\n\n";
@@ -64,6 +71,25 @@ startCreate:
       while (cin.get() != '\n') {}
       goto fail;
     }
+
+    free(W);
+
+    string transID = genTransID();
+    sql = "INSERT INTO transactions (transid, src, dst, timeDate, desp) VALUES ('" + transID + "','" + newAccNo + "','CASH','" + getCurrDateTime() + "'," + "'WITHDRAWN ₹ " + amount + " BY CASH');";
+
+    W = new pqxx::work(*C);
+    try {
+      W->exec(sql);
+      W->commit();
+    } catch(const std::exception &e) {
+      cout << "Something went wrong while processing transaction...\n";
+      cout << "Transaction couldn't be registered, however the amount has withdrawn successfully\n";
+      cout << "Registering the issue for further investigation...\n";
+      usleep(10 * 1000000);
+    }
+
+    delete(W);
+
     usleep(1.25 * 1000000);
     system("clear");
     cout << "\nChawat eBanking System\n\n" << endl;
@@ -81,9 +107,9 @@ startCreate:
 }
 
 string getAccountNewNo(pqxx::connection * C) {
-  string sql = "SELECT COUNT(*) FROM accounts";
+  string sql = "SELECT MAX(accno) FROM accounts";
   nontransaction N(*C);
   result R(N.exec(sql));
   result::const_iterator c = R.begin();
-  return to_string(1000000000 + c[0].as<int>() + 1);
+  return to_string(c[0].as<int>() + 1);
 }

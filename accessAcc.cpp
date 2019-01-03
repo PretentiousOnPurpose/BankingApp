@@ -2,21 +2,15 @@
 #include <pqxx/pqxx>
 #include <ctime>
 #include <cstdlib>
+#include <string>
+#include <unistd.h>
+#include "utils.hpp"
+#include "accessAcc.hpp"
 
 using namespace pqxx;
 using namespace std;
 
 bool loginedIn;
-
-void loginAccount();
-void dashboard(string, string);
-void depositCash(string, string);
-void withdrawCash(string, string);
-void sendMoney();
-void currentBalance(string, string);
-void getTransHistory();
-void logout();
-string genTransID();
 
 
 void loginAccount() {
@@ -101,7 +95,7 @@ void dashboard(string accno, string name) {
                   currentBalance(accno, name);
                   break;
               case 5:
-                  getTransHistory();
+                  getTransHistory(accno, name);
                   break;
               case 6:
                   logout();
@@ -148,7 +142,7 @@ startDeposit:
     free(W);
 
     transID = genTransID();
-    sql = "INSERT INTO transactions (transid, src, dst, desp) VALUES ('" + transID + "', 'CASH', '" + accno + "'," + "'DEPOSITED ₹ " + amount + " BY CASH');";
+    sql = "INSERT INTO transactions (transid, src, dst, timeDate, desp) VALUES ('" + transID + "', 'CASH', '" + accno + "','" + getCurrDateTime() + "'," + "'DEPOSITED ₹ " + amount + " BY CASH');";
     W = new pqxx::work(*C);
     try {
       W->exec(sql);
@@ -169,13 +163,9 @@ startDeposit:
     cout << "₹" << amount << " deposited successfully\n";
     cout << "Your transaction id: " << transID << endl;
 
-    cout << "\n\nHit Return or Enter for Dashboard\n\n";
     C->disconnect();
     delete(C);
-    cin.ignore();
-    while (cin.get() != '\n') {}
-    dashboard(accno, name);
-
+    backToDashboard(accno, name);
 }
 //
 void withdrawCash(string accno, string name) {
@@ -223,7 +213,7 @@ startDeposit:
     free(W);
 
     transID = genTransID();
-    sql = "INSERT INTO transactions (transid, src, dst, desp) VALUES ('" + transID + "','" + accno + "','CASH'," + "'WITHDRAWN ₹ " + amount + " BY CASH');";
+    sql = "INSERT INTO transactions (transid, src, dst, timeDate, desp) VALUES ('" + transID + "','" + accno + "','CASH','" + getCurrDateTime() + "'," + "'WITHDRAWN ₹ " + amount + " BY CASH');";
     W = new pqxx::work(*C);
     try {
       W->exec(sql);
@@ -244,19 +234,15 @@ startDeposit:
     cout << "₹" << amount << " withdrawn successfully\n";
     cout << "Your transaction id: " << transID << endl;
 
-    cout << "\n\nHit Return or Enter for Dashboard\n\n";
     C->disconnect();
     delete(C);
-    cin.ignore();
-    while (cin.get() != '\n') {}
-    dashboard(accno, name);
+    backToDashboard(accno, name);
 }
 //
 void sendMoney() {
-//
+
 }
-//
-//44
+
 void currentBalance(string accno, string name) {
     string sql = "SELECT amount FROM accounts WHERE accno = '" + accno + "';";
     pqxx::connection * C = new pqxx::connection("dbname = bank user = postgres password = 007 hostaddr = 127.0.0.1 port = 5432");
@@ -269,45 +255,48 @@ void currentBalance(string accno, string name) {
     cout << "Name: " << name << " | " << "Account No: " << accno << endl << endl;
     cout << "Your Balance: ₹ " << c[0] << endl;
 
-    cout << "\n\nHit Return or Enter for Dashboard\n\n";
     C->disconnect();
     delete(C);
-    cin.ignore();
-    while (cin.get() != '\n') {}
-    dashboard(accno, name);
+    backToDashboard(accno, name);
 }
 //
-void getTransHistory() {
-//     // system("clear");
-//     // cout << "\nChawat eBanking System\n\n";
-//     // cout << "Fetching Details... Please wait";
-//     // string sql;
-//     // try {
-//     //     sql = "SELECT * FROM transactions";
-//     //     nontransaction N(C);
-//     //     result R(N.exec(sql));
-//     //     int i = 1;
-//     //     usleep(1.25 * 1000000);
-//     //
-//     //     system("clear");
-//     //     cout << "\nChawat eBanking System\n\n";
-//     //
-//     //
-//     //     for (result::const_iterator c = R.begin(); c != R.end(); ++c) {
-//     //         cout << " -- -- -- -- -- " << i << " -- -- -- -- -- ";
-//     //         cout << "Transaction ID = " << c[0].as<string>() << endl;
-//     //         cout << "Source Account = " << c[1].as<string>() << endl;
-//     //         cout << "Dest. Account = " << c[2].as<string>() << endl;
-//     //         cout << "Amount = " << c[3].as<float>() << endl;
-//     //         cout << "Desp. = " << c[4].as<string>() << endl;
-//     //         cout << " -- -- -- -- -- -- -- -- -- -- \n";
-//     //         i++;
-//     //     }
-//     //     cout << "Operation done successfully" << endl;
-//     //     C.disconnect ();
-//     // } catch(const std::exception &e) {
-//     //     cout << "DB Read Failed\n";
-//     // }
+void getTransHistory(string accno, string name) {
+    pqxx::connection * C = new pqxx::connection("dbname = bank user = postgres password = 007 hostaddr = 127.0.0.1 port = 5432");
+    pqxx::nontransaction * N = new pqxx::nontransaction(*C);
+    int i = 1;
+    string sql;
+
+    system("clear");
+    cout << "\nChawat eBanking System\n\n";
+    cout << "Fetching Details... Please wait\n";
+    sql = "SELECT * FROM transactions";
+
+    result R(N->exec(sql));
+    delete(N);
+
+    usleep(1.5 * 1000000);
+
+    system("clear");
+    cout << "\nChawat eBanking System\n\n";
+    cout << "Name: " << name << " | " << "Account No: " << accno << endl;
+    cout << "Your Transactions\n\n";
+    try {
+        for (result::const_iterator c = R.begin(); c != R.end(); ++c, i++) {
+            cout << " -- -- -- -- -- " << i << " -- -- -- -- -- \n";
+            cout << "Transaction ID = " << c[0].as<string>() << endl;
+            cout << "Source Account = " << c[1].as<string>() << endl;
+            cout << "Dest. Account = " << c[2].as<string>() << endl;
+            cout << "Date = " << c[3].as<string>() << endl;
+            cout << "Desp. = " << c[4].as<string>() << endl;
+            cout << " -- -- -- -- - END - -- -- -- -- \n\n";
+        }
+    } catch (const std::exception &e) {
+        cout << "No Transactions Found.\n";
+    }
+
+    C->disconnect();
+    delete(C);
+    backToDashboard(accno, name);
 }
 //
 void logout() {
@@ -315,14 +304,9 @@ void logout() {
     return;
 }
 
-string genTransID() {
-  time_t rawtime;
-  struct tm * timeinfo;
-  char transID[80];
-
-  time (&rawtime);
-  timeinfo = localtime (&rawtime);
-
-  strftime (transID,80,"%y%m%d%H%M%S",timeinfo);
-  return transID;
+void backToDashboard(string accno, string name) {
+    cout << "\nHit Return or Enter for Dashboard\n\n";
+    cin.ignore();
+    while (cin.get() != '\n') {}
+    dashboard(accno, name);
 }
