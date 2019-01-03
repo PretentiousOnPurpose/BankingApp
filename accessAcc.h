@@ -13,7 +13,6 @@ void dashboard(string, string);
 void depositCash(string, string);
 void withdrawCash(string, string);
 void sendMoney();
-void requestMoney();
 void currentBalance();
 void getTransHistory();
 void logout();
@@ -133,12 +132,12 @@ startDeposit:
     cin >> amount;
     cout << "\nProcessing... Please wait\n" << endl;
 
-    work W(*C);
+    pqxx::work * W = new pqxx::work(*C);
     sql = "UPDATE accounts SET amount = amount + " + amount + " WHERE accno = '" + accno + "';";
 
     try {
-      W.exec(sql);
-      W.commit();
+      W->exec(sql);
+      W->commit();
     } catch(const std::exception &e) {
       cout << "Something went wrong... \n";
       cin.ignore();
@@ -147,18 +146,22 @@ startDeposit:
       goto startDeposit;
     }
 
+    free(W);
+
     transID = genTransID();
     sql = "INSERT INTO transactions (transid, src, dst, desp) VALUES ('" + transID + "', 'CASH', '" + accno + "'," + "'DEPOSITED ₹ " + amount + " BY CASH');";
-    work F(*C);
+    W = new pqxx::work(*C);
     try {
-      F.exec(sql);
-      F.commit();
+      W->exec(sql);
+      W->commit();
     } catch(const std::exception &e) {
       cout << "Something went wrong while processing transaction...\n";
       cout << "Transaction couldn't be registered, however the amount has deposited successfully\n";
       cout << "Registering the issue for further investigation...\n";
       usleep(10 * 1000000);
     }
+
+    delete(W);
 
     usleep(1.25 * 1000000);
     system("clear");
@@ -198,14 +201,13 @@ startDeposit:
 
     result::const_iterator c = R.begin();
 
-
-    work W(*C);
+    pqxx::work * W = new pqxx::work(*C);
     sql = "UPDATE accounts SET amount = amount - " + amount + " WHERE accno = '" + accno + "';";
 
     if (c[0].as<double>() >= atof(amount.c_str())) {
         try {
-          W.exec(sql);
-          W.commit();
+          W->exec(sql);
+          W->commit();
         } catch(const std::exception &e) {
           cout << "Something went wrong... \n";
           cin.ignore();
@@ -220,18 +222,22 @@ startDeposit:
         while (cin.get() != '\n') {}
     }
 
+    free(W);
+
     transID = genTransID();
-    sql = "INSERT INTO transactions (transid, src, dst, desp) VALUES ('" + transID + "', 'CASH', '" + accno + "'," + "'DEPOSITED ₹ " + amount + " BY CASH');";
-    work F(*C);
+    sql = "INSERT INTO transactions (transid, src, dst, desp) VALUES ('" + transID + "','" + accno + "','CASH'," + "'WITHDRAWN ₹ " + amount + " BY CASH');";
+    W = new pqxx::work(*C);
     try {
-      F.exec(sql);
-      F.commit();
+      W->exec(sql);
+      W->commit();
     } catch(const std::exception &e) {
       cout << "Something went wrong while processing transaction...\n";
       cout << "Transaction couldn't be registered, however the amount has withdrawn successfully\n";
       cout << "Registering the issue for further investigation...\n";
       usleep(10 * 1000000);
     }
+
+    delete(W);
 
     usleep(1.25 * 1000000);
     system("clear");
@@ -252,9 +258,6 @@ void sendMoney() {
 //
 }
 //
-void requestMoney() {
-//
-}
 //
 void currentBalance() {
 //     cout << "Your Balance: ₹" << "10000" << endl;
