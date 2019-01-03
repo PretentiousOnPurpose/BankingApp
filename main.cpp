@@ -100,5 +100,54 @@ void updateAccount() {
 }
 
 void deleteAccount() {
-    cout << "\nAccount Deleted\n";
+      string accno;
+      string pin;
+      string cnf;
+      string sql;
+
+      system("clear");
+      cout << "\nChawat eBanking System\n\n" << endl;
+      cout << "Account Deletion\n" << endl;
+      cout << "Enter your Account No: ";
+      cin >> accno;
+      cout << "Enter your pin: ";
+      cin >> pin;
+
+      cout << "\n\nAccount deletion is irreversible, shall we proceed ? [Y/N]: ";
+      cin >> cnf;
+      cout << "\n\nProcessing request... Please Wait\n";
+      if (!(cnf == "Y" || cnf == "y")) {
+          cout << "\nProcess Aborted.\n";
+          cout << "Redirecting to Main Menu\n";
+          usleep(5 * 1000000);
+      } else {
+          pqxx::connection * C = new pqxx::connection("dbname = bank user = postgres password = 007 hostaddr = 127.0.0.1 port = 5432");
+          sql = "SELECT pin FROM accounts WHERE accno = '" + accno + "';";
+          pqxx::nontransaction * N = new pqxx::nontransaction(*C);
+          result R(N->exec(sql));
+          result::const_iterator c = R.begin();
+          delete(N);
+
+          if (c[0].as<string>() == pin) {
+              pqxx::work * W = new pqxx::work(*C);
+              sql = "UPDATE accounts SET pin = 'DELETED' WHERE accno = '" + accno + "';";
+              W->exec(sql);
+              W->commit();
+              usleep(1.25 * 1000000);
+              cout << "Account deleted successfully\n";
+              cin.ignore();
+              delete(W);
+              cout << "\n\nHit Return or Enter for Main Screen\n\n";
+              while (cin.get() != '\n') {}
+
+          } else {
+              cout << "Provided information is incorrect / Internal server issue\nPlease try later\n";
+              cin.ignore();
+              cout << "\n\nHit Return or Enter for Main Screen\n\n";
+              while (cin.get() != '\n') {}
+          }
+          C->disconnect();
+          delete(C);
+      }
+      mainView();
 }

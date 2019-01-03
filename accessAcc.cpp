@@ -38,14 +38,23 @@ startLogin:
       goto fail;
     }
 
-    sql = "SELECT * FROM accounts WHERE accno='" + accNo + "';";
+    sql = "SELECT pin FROM accounts WHERE accno='" + accNo + "';";
     R = N.exec(sql);
     c = R.begin();
 
     cout << "\nValidating\n";
     usleep(1 * 1000000);
 
-    if (pin == c[2].as<string>()) {
+    if (c[0].as<string>() == "DELETED") {
+      cout << "\nYour Account has been disabled/deleted\n";
+      cout << "Please contact Branch Manager for help\n";
+      cin.ignore();
+      cout << "\n\nHit Return or Enter for Main Screen\n\n";
+      while (cin.get() != '\n') {}
+      return;
+    }
+
+    if (pin == c[0].as<string>()) {
         loginedIn = true;
         cout << "\nLogin Successful\n\n";
         usleep(1.25 * 1000000);
