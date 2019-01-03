@@ -89,7 +89,7 @@ void dashboard(string accno, string name) {
                   withdrawCash(accno, name);
                   break;
               case 3:
-                  sendMoney();
+                  sendMoney(accno, name);
                   break;
               case 4:
                   currentBalance(accno, name);
@@ -170,7 +170,7 @@ startDeposit:
 //
 void withdrawCash(string accno, string name) {
     pqxx::connection * C = new pqxx::connection("dbname = bank user = postgres password = 007 hostaddr = 127.0.0.1 port = 5432");
-startDeposit:
+startWithdrawl:
     string amount;
     string sql;
     string transID;
@@ -201,7 +201,7 @@ startDeposit:
           cin.ignore();
           cout << "\nEnter enter to try again...";
           while (cin.get() != '\n') {}
-          goto startDeposit;
+          goto startWithdrawl;
         }
     } else {
         cout << "Processing failed due to insufficient funds...\n";
@@ -239,8 +239,78 @@ startDeposit:
     backToDashboard(accno, name);
 }
 //
-void sendMoney() {
+void sendMoney(string accno, string name) {
+    pqxx::connection * C = new pqxx::connection("dbname = bank user = postgres password = 007 hostaddr = 127.0.0.1 port = 5432");
+startWithdrawl:
+    string amount;
+    string sql;
+    string transID;
+    string daccno;
 
+    system("clear");
+    cout << "\nChawat eBanking System\n";
+    cout << "Send Money" << endl << endl;
+    cout << "Enter Account No. of recepient: ";
+    cin >> daccno;
+    cout << "\nPlease enter the amount: ₹ ";
+    cin >> amount;
+    cout << "\nProcessing... Please wait\n" << endl;
+
+    sql = "SELECT amount FROM accounts WHERE accno = '" + accno + "';";
+    pqxx::nontransaction * N = new pqxx::nontransaction(*C);
+    result R(N->exec(sql));
+    delete(N);
+
+    result::const_iterator c = R.begin();
+
+    pqxx::work * W = new pqxx::work(*C);
+    sql = "UPDATE accounts SET amount = amount - " + amount + " WHERE accno = '" + accno + "';";
+    sql = sql + "UPDATE accounts SET amount = amount + " + amount + " WHERE accno = '" + daccno + "';";
+    if (c[0].as<double>() >= atof(amount.c_str())) {
+        try {
+          W->exec(sql);
+          W->commit();
+        } catch(const std::exception &e) {
+          cout << "Something went wrong... \n";
+          cin.ignore();
+          cout << "\nEnter enter to try again...";
+          while (cin.get() != '\n') {}
+          goto startWithdrawl;
+        }
+    } else {
+        cout << "Processing failed due to insufficient funds...\n";
+        cin.ignore();
+        cout << "\nEnter enter to try again...";
+        while (cin.get() != '\n') {}
+    }
+
+    free(W);
+
+    transID = genTransID();
+    sql = "INSERT INTO transactions (transid, src, dst, timeDate, desp) VALUES ('" + transID + "','" + accno + "','" + daccno + "','" + getCurrDateTime() + "'," + "'Transferred ₹ " + amount + " Digitally');";
+    W = new pqxx::work(*C);
+    try {
+      W->exec(sql);
+      W->commit();
+    } catch(const std::exception &e) {
+      cout << "Something went wrong while processing transaction...\n";
+      cout << "Transaction couldn't be registered, however the amount has withdrawn successfully\n";
+      cout << "Registering the issue for further investigation...\n";
+      usleep(10 * 1000000);
+    }
+
+    delete(W);
+
+    usleep(1.25 * 1000000);
+    system("clear");
+    cout << "\nChawat eBanking System\n\n";
+    cout << "Name: " << name << " | " << "Account No: " << accno << endl << endl;
+    cout << "₹" << amount << " withdrawn successfully\n";
+    cout << "Your transaction id: " << transID << endl;
+
+    C->disconnect();
+    delete(C);
+    backToDashboard(accno, name);
 }
 
 void currentBalance(string accno, string name) {
@@ -301,7 +371,6 @@ void getTransHistory(string accno, string name) {
 //
 void logout() {
     loginedIn = false;
-    return;
 }
 
 void backToDashboard(string accno, string name) {

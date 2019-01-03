@@ -9,7 +9,7 @@ void loginAccount();
 void dashboard(string, string);
 void depositCash(string, string);
 void withdrawCash(string, string);
-void sendMoney();
+void sendMoney(string, string);
 void currentBalance(string, string);
 void getTransHistory(string, string);
 void logout();
