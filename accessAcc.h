@@ -1,6 +1,7 @@
 #include <iostream>
 #include <pqxx/pqxx>
 #include <ctime>
+#include <cstdlib>
 
 using namespace pqxx;
 using namespace std;
@@ -10,7 +11,7 @@ bool loginedIn;
 void loginAccount();
 void dashboard(string, string);
 void depositCash(string, string);
-void withdrawCash();
+void withdrawCash(string, string);
 void sendMoney();
 void requestMoney();
 void currentBalance();
@@ -69,47 +70,51 @@ startLogin:
 }
 
 void dashboard(string accno, string name) {
-startDashboard:
-    system("clear");
+    if (loginedIn) {
+      startDashboard:
+          system("clear");
 
-    int action;
+          int action;
 
-    cout << "\nChawat eBanking System\n\n";
-    cout << "Hello " << name << "\n\n" << endl;
-    cout << "1. Deposit Cash\n";
-    cout << "2. Withdraw Cash\n";
-    cout << "3. Send Money\n";
-    cout << "4. Check Current Balance\n";
-    cout << "5. Get Transaction History\n";
-    cout << "6. Logout\n";
-    cout << "\nPlease enter your choice: ";
+          cout << "\nChawat eBanking System\n\n";
+          cout << "Hello " << name << "\n\n" << endl;
+          cout << "1. Deposit Cash\n";
+          cout << "2. Withdraw Cash\n";
+          cout << "3. Send Money\n";
+          cout << "4. Check Current Balance\n";
+          cout << "5. Get Transaction History\n";
+          cout << "6. Logout\n";
+          cout << "\nPlease enter your choice: ";
 
-    cin >> action;
+          cin >> action;
 
-    switch(action) {
-        case 1:
-            depositCash(accno, name);
-            break;
-        case 2:
-            withdrawCash();
-            break;
-        case 3:
-            sendMoney();
-            break;
-        case 4:
-            currentBalance();
-            break;
-        case 5:
-            getTransHistory();
-            break;
-        case 6:
-            logout();
-            break;
-        default:
-            cout << "\nInvalid Choice\n";
-            cout << "Refreshing in 2 seconds\n";
-            usleep(2 * 1000000);
-            dashboard(accno, name);
+          switch(action) {
+              case 1:
+                  depositCash(accno, name);
+                  break;
+              case 2:
+                  withdrawCash(accno, name);
+                  break;
+              case 3:
+                  sendMoney();
+                  break;
+              case 4:
+                  currentBalance();
+                  break;
+              case 5:
+                  getTransHistory();
+                  break;
+              case 6:
+                  logout();
+                  break;
+              default:
+                  cout << "\nInvalid Choice\n";
+                  cout << "Refreshing in 2 seconds\n";
+                  usleep(2 * 1000000);
+                  dashboard(accno, name);
+          }
+    } else {
+      loginAccount();
     }
 }
 
@@ -171,8 +176,76 @@ startDeposit:
 
 }
 //
-void withdrawCash() {
-//
+void withdrawCash(string accno, string name) {
+    pqxx::connection * C = new pqxx::connection("dbname = bank user = postgres password = 007 hostaddr = 127.0.0.1 port = 5432");
+startDeposit:
+    string amount;
+    string sql;
+    string transID;
+
+    system("clear");
+    cout << "\nChawat eBanking System\n\n";
+    currentBalance();
+    cout << "\nPlease enter the amount for withdrawl: ₹ ";
+
+    cin >> amount;
+    cout << "\nProcessing... Please wait\n" << endl;
+
+    sql = "SELECT amount FROM accounts WHERE accno = '" + accno + "';";
+    pqxx::nontransaction * N = new pqxx::nontransaction(*C);
+    result R(N->exec(sql));
+    delete(N);
+
+    result::const_iterator c = R.begin();
+
+
+    work W(*C);
+    sql = "UPDATE accounts SET amount = amount - " + amount + " WHERE accno = '" + accno + "';";
+
+    if (c[0].as<double>() >= atof(amount.c_str())) {
+        try {
+          W.exec(sql);
+          W.commit();
+        } catch(const std::exception &e) {
+          cout << "Something went wrong... \n";
+          cin.ignore();
+          cout << "\nEnter enter to try again...";
+          while (cin.get() != '\n') {}
+          goto startDeposit;
+        }
+    } else {
+        cout << "Processing failed due to insufficient funds...\n";
+        cin.ignore();
+        cout << "\nEnter enter to try again...";
+        while (cin.get() != '\n') {}
+    }
+
+    transID = genTransID();
+    sql = "INSERT INTO transactions (transid, src, dst, desp) VALUES ('" + transID + "', 'CASH', '" + accno + "'," + "'DEPOSITED ₹ " + amount + " BY CASH');";
+    work F(*C);
+    try {
+      F.exec(sql);
+      F.commit();
+    } catch(const std::exception &e) {
+      cout << "Something went wrong while processing transaction...\n";
+      cout << "Transaction couldn't be registered, however the amount has withdrawn successfully\n";
+      cout << "Registering the issue for further investigation...\n";
+      usleep(10 * 1000000);
+    }
+
+    usleep(1.25 * 1000000);
+    system("clear");
+    cout << "\nChawat eBanking System\n\n";
+    cout << "Name: " << name << " | " << "Account No: " << accno << endl << endl;
+    cout << "₹" << amount << " withdrawn successfully\n";
+    cout << "Your transaction id: " << transID << endl;
+
+    cout << "\n\nHit Return or Enter for Main Screen\n\n";
+    C->disconnect();
+    delete(C);
+    cin.ignore();
+    while (cin.get() != '\n') {}
+    dashboard(accno, name);
 }
 //
 void sendMoney() {
@@ -222,7 +295,6 @@ void getTransHistory() {
 //
 void logout() {
     loginedIn = false;
-    // mainView();
     return;
 }
 
