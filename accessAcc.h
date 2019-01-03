@@ -13,7 +13,7 @@ void dashboard(string, string);
 void depositCash(string, string);
 void withdrawCash(string, string);
 void sendMoney();
-void currentBalance();
+void currentBalance(string, string);
 void getTransHistory();
 void logout();
 string genTransID();
@@ -98,7 +98,7 @@ void dashboard(string accno, string name) {
                   sendMoney();
                   break;
               case 4:
-                  currentBalance();
+                  currentBalance(accno, name);
                   break;
               case 5:
                   getTransHistory();
@@ -126,7 +126,6 @@ startDeposit:
 
     system("clear");
     cout << "\nChawat eBanking System\n\n";
-    currentBalance();
     cout << "\nPlease enter the amount for deposition: ₹ ";
 
     cin >> amount;
@@ -170,7 +169,7 @@ startDeposit:
     cout << "₹" << amount << " deposited successfully\n";
     cout << "Your transaction id: " << transID << endl;
 
-    cout << "\n\nHit Return or Enter for Main Screen\n\n";
+    cout << "\n\nHit Return or Enter for Dashboard\n\n";
     C->disconnect();
     delete(C);
     cin.ignore();
@@ -188,7 +187,6 @@ startDeposit:
 
     system("clear");
     cout << "\nChawat eBanking System\n\n";
-    currentBalance();
     cout << "\nPlease enter the amount for withdrawl: ₹ ";
 
     cin >> amount;
@@ -246,7 +244,7 @@ startDeposit:
     cout << "₹" << amount << " withdrawn successfully\n";
     cout << "Your transaction id: " << transID << endl;
 
-    cout << "\n\nHit Return or Enter for Main Screen\n\n";
+    cout << "\n\nHit Return or Enter for Dashboard\n\n";
     C->disconnect();
     delete(C);
     cin.ignore();
@@ -258,9 +256,25 @@ void sendMoney() {
 //
 }
 //
-//
-void currentBalance() {
-//     cout << "Your Balance: ₹" << "10000" << endl;
+//44
+void currentBalance(string accno, string name) {
+    string sql = "SELECT amount FROM accounts WHERE accno = '" + accno + "';";
+    pqxx::connection * C = new pqxx::connection("dbname = bank user = postgres password = 007 hostaddr = 127.0.0.1 port = 5432");
+    pqxx::nontransaction * N = new pqxx::nontransaction(*C);
+    result R(N->exec(sql));
+    result::const_iterator c = R.begin();
+
+    system("clear");
+    cout << "\nChawat eBanking System\n\n";
+    cout << "Name: " << name << " | " << "Account No: " << accno << endl << endl;
+    cout << "Your Balance: ₹ " << c[0] << endl;
+
+    cout << "\n\nHit Return or Enter for Dashboard\n\n";
+    C->disconnect();
+    delete(C);
+    cin.ignore();
+    while (cin.get() != '\n') {}
+    dashboard(accno, name);
 }
 //
 void getTransHistory() {
