@@ -15,7 +15,7 @@ bool loginedIn;
 
 void loginAccount() {
     pqxx::connection * C = new pqxx::connection("dbname = bank user = postgres password = 007 hostaddr = 127.0.0.1 port = 5432");
-startLogin:
+    nontransaction N(*C);
     string sql;
 
     system("clear");
@@ -30,7 +30,6 @@ startLogin:
     cin >> pin;
 
     sql = "SELECT EXISTS(SELECT * FROM accounts WHERE accno='" + accNo + "');";
-    nontransaction N(*C);
     result R(N.exec(sql));
     result::const_iterator c = R.begin();
 
@@ -64,7 +63,10 @@ startLogin:
         cout << "Hit enter to try again...";
         cin.ignore();
         while (cin.get() != '\n') {}
-        goto startLogin;
+        loginAccount();
+        C->disconnect();
+        delete(C);
+        return;
     }
     C->disconnect();
     delete(C);
@@ -73,7 +75,6 @@ startLogin:
 
 void dashboard(string accno, string name) {
     if (loginedIn) {
-      startDashboard:
           system("clear");
 
           int action;
@@ -125,7 +126,6 @@ void dashboard(string accno, string name) {
 
 void depositCash(string accno, string name) {
     pqxx::connection * C = new pqxx::connection("dbname = bank user = postgres password = 007 hostaddr = 127.0.0.1 port = 5432");
-startDeposit:
     string amount;
     string sql;
     string transID;
@@ -148,7 +148,10 @@ startDeposit:
       cin.ignore();
       cout << "\nEnter enter to try again...";
       while (cin.get() != '\n') {}
-      goto startDeposit;
+      depositCash(accno, name);
+      delete(W);
+      delete(C);
+      return;
     }
 
     free(W);
@@ -182,7 +185,6 @@ startDeposit:
 //
 void withdrawCash(string accno, string name) {
     pqxx::connection * C = new pqxx::connection("dbname = bank user = postgres password = 007 hostaddr = 127.0.0.1 port = 5432");
-startWithdrawl:
     string amount;
     string sql;
     string transID;
@@ -210,7 +212,7 @@ startWithdrawl:
           W->commit();
         } catch(const std::exception &e) {
           cout << "Something went wrong... \n";
-          delete(W);      
+          delete(W);
           cin.ignore();
           cout << "\nEnter enter to try again...";
           while (cin.get() != '\n') {}
@@ -223,6 +225,8 @@ startWithdrawl:
         cout << "\nEnter enter to try again...";
         while (cin.get() != '\n') {}
         withdrawCash(accno, name);
+        delete(W);
+        delete(C);
         return;
     }
 
@@ -257,7 +261,6 @@ startWithdrawl:
 //
 void sendMoney(string accno, string name) {
     pqxx::connection * C = new pqxx::connection("dbname = bank user = postgres password = 007 hostaddr = 127.0.0.1 port = 5432");
-startWithdrawl:
     string amount;
     string sql;
     string transID;
@@ -282,7 +285,10 @@ startWithdrawl:
         cout << "\nRecepeint Account No. is invalid\n";
         cout << "Please try again... Refreshing in 5 seconds\n";
         usleep(5 * 1000000);
-        goto startWithdrawl;
+        sendMoney(accno, name);
+        delete(N);
+        delete(C);
+        return;
     }
 
     N = new pqxx::nontransaction(*C);
@@ -303,7 +309,10 @@ startWithdrawl:
           cin.ignore();
           cout << "\nEnter enter to try again...";
           while (cin.get() != '\n') {}
-          goto startWithdrawl;
+          sendMoney(accno, name);
+          delete(W);
+          delete(C);
+          return;
         }
     } else {
         cout << "Processing failed due to insufficient funds...\n";
@@ -442,17 +451,22 @@ startChange:
             sql = "UPDATE accounts SET pin = '" + newPin + "' WHERE accno = '" + accno + "';";
             W->exec(sql);
             W->commit();
+            delete(W);
         } else {
             cout << "New Pins do not match. Please try again\n";
             cout << "Refreshing... Please wait\n";
             usleep(5 * 1000000);
-            goto startChange;
+            changePin(accno, name);
+            delete(C);
+            return;
         }
     } else {
         cout << "Incorrect Login Pin. Please try again\n";
         cout << "Refreshing... Please wait\n";
         usleep(5 * 1000000);
-        goto startChange;
+        delete(C);
+        changePin(accno, name);
+        return;
     }
     usleep(1.25 * 1000000);
     cout << "\nLogin Pin successfully updated.\n";
