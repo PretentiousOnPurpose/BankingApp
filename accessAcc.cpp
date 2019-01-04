@@ -268,13 +268,25 @@ startWithdrawl:
     cin >> amount;
     cout << "\nProcessing... Please wait\n" << endl;
 
-    sql = "SELECT amount FROM accounts WHERE accno = '" + accno + "';";
     pqxx::nontransaction * N = new pqxx::nontransaction(*C);
+    sql = "SELECT EXISTS(SELECT * FROM accounts WHERE accno='" + daccno + "');";
     result R(N->exec(sql));
     delete(N);
-
     result::const_iterator c = R.begin();
 
+    if (c[0].as<bool>() == false) {
+        cout << "\nRecepeint Account No. is invalid\n";
+        cout << "Please try again... Refreshing in 5 seconds\n";
+        usleep(5 * 1000000);
+        goto startWithdrawl;
+    }
+
+    N = new pqxx::nontransaction(*C);
+    sql = "SELECT amount FROM accounts WHERE accno = '" + accno + "';";
+    R = N->exec(sql);
+    delete(N);
+
+    c = R.begin();
     pqxx::work * W = new pqxx::work(*C);
     sql = "UPDATE accounts SET amount = amount - " + amount + " WHERE accno = '" + accno + "';";
     sql = sql + "UPDATE accounts SET amount = amount + " + amount + " WHERE accno = '" + daccno + "';";
