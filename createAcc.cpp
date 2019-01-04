@@ -4,6 +4,7 @@
 #include <string>
 #include <unistd.h>
 #include <cstdlib>
+#include <stdexcept>
 #include "utils.hpp"
 #include "createAcc.hpp"
 
@@ -60,8 +61,13 @@ startCreate:
 
     sql = "INSERT INTO accounts (accno, name, pin, phone, email, aadhar, amount) VALUES ('";
     sql += newAccNo +"','"+ name +"','"+ pin +"','"+ phone +"','"+ email +"','"+ aadhar +"'," + amount + ");";
+    cout << sql << endl;
+    // usleep(10 * 1000000);
     W = new pqxx::work(*C);
     try {
+      if (phone.length() != 10 && aadhar.length() != 12) {
+          std::invalid_argument( "Invalid Details Provided\n" );
+      }
       W->exec(sql);
       W->commit();
     } catch (const std::exception &e) {
