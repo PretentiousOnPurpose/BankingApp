@@ -1,3 +1,6 @@
+// Author: Chawat
+// To Compile: g++ main.cpp utils.cpp accessAcc.cpp createAcc.cpp -lpqxx -lpq -o a.out
+
 #include <iostream>
 #include <pqxx/pqxx>
 #include <string>
