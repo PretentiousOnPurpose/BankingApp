@@ -210,16 +210,20 @@ startWithdrawl:
           W->commit();
         } catch(const std::exception &e) {
           cout << "Something went wrong... \n";
+          delete(W);      
           cin.ignore();
           cout << "\nEnter enter to try again...";
           while (cin.get() != '\n') {}
-          goto startWithdrawl;
+          withdrawCash(accno, name);
+          return;
         }
     } else {
         cout << "Processing failed due to insufficient funds...\n";
         cin.ignore();
         cout << "\nEnter enter to try again...";
         while (cin.get() != '\n') {}
+        withdrawCash(accno, name);
+        return;
     }
 
     free(W);
